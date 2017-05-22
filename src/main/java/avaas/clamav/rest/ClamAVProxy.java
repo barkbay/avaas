@@ -20,6 +20,8 @@ package avaas.clamav.rest;
 import avaas.clamav.client.ClamAVClient;
 import avaas.magic.Magic;
 import com.google.common.base.Strings;
+import io.swagger.annotations.ApiResponse;
+import io.swagger.annotations.ApiResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -122,7 +124,7 @@ public class ClamAVProxy {
     /**
      * @return Clamd status.
      */
-    @RequestMapping("/")
+    @RequestMapping(value = "/api/v1", method = RequestMethod.GET)
     public String ping() throws IOException {
         ClamAVClient a = new ClamAVClient(hostname, port, timeout);
         logger.info("Clamd response is {}", a.ping());
@@ -133,9 +135,14 @@ public class ClamAVProxy {
      * @return Clamd scan result
      */
     @RequestMapping(value = "/api/v1/scan", method = RequestMethod.POST)
+    @ApiResponses(value = {
+            @ApiResponse(code = 200, message = "Success", response = ClamAVResponse.class),
+            @ApiResponse(code = 401, message = "Unauthorized"),
+            @ApiResponse(code = 500, message = "Failure")})
     public @ResponseBody
     ClamAVResponse handleFileUpload(@RequestParam("name") String name,
-                            @RequestParam("file") MultipartFile file) throws IOException {
+                                    @RequestParam("file") MultipartFile file)
+            throws IOException {
         MDC.clear();
         if (Strings.isNullOrEmpty(name)) throw new IllegalArgumentException("name parameter is empty or missing");
         if (!file.isEmpty()) {
