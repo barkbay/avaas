@@ -1,0 +1,17 @@
+# Default white listed magic numbers
+# PDF
+0,25 50 44 46
+# Gif87a
+0,47 49 46 38 37 61
+# Gif89a
+0,47 49 46 38 39 61
+# TIFF (little endian format)
+0,49 49 2A 00
+# TIFF (big endian format)
+0,4D 4D 00 2A
+# JPEG
+0,FF D8 FF
+# BMP
+0,42 4D
+# PNG
+0,89 50 4E 47 0D 0A 1A 0A
