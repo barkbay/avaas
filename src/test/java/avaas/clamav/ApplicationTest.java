@@ -36,4 +36,14 @@ public class ApplicationTest {
         assertEquals("9", matcher.group(3));
     }
 
+    @Test
+    public void hostnameTest2() throws Exception {
+        final String hostname = "clamav-dev-11-rpblx";
+        final Matcher matcher = Application.HostnamePattern.matcher(hostname);
+        assertTrue(matcher.matches());
+        assertEquals("clamav", matcher.group(1));
+        assertEquals("dev", matcher.group(2));
+        assertEquals("11", matcher.group(3));
+    }
+
 }

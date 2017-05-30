@@ -95,7 +95,7 @@ public class Application {
         return new MetricRegistryMetricReader(metricRegistry());
     }
 
-    public final static Pattern HostnamePattern = Pattern.compile("^([a-z0-9\\-]+)\\-(\\w+)\\-([0-9])\\-(\\w+)$");
+    public final static Pattern HostnamePattern = Pattern.compile("^([a-z0-9\\-]+)\\-(\\w+)\\-([0-9]+)\\-(\\w+)$");
 
     @Bean
     public MetricRegistry metricRegistry() {
