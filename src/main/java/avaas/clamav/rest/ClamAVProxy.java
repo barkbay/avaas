@@ -25,7 +25,9 @@ import io.swagger.annotations.ApiResponses;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.actuate.metrics.CounterService;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -44,6 +46,19 @@ public class ClamAVProxy {
     private static final Pattern clamdResponsePattern = Pattern.compile("^.* (.*) FOUND.*$");
 
     private static final Magic magic = Magic.getInstance();
+
+    private final CounterService globalCounterService;
+    private final CounterService blacklistedCounterService;
+    private final CounterService infectedCounterService;
+
+    @Autowired
+    public ClamAVProxy(CounterService globalCounterService,
+                       CounterService blacklistedCounterService,
+                       CounterService infectedCounterService) {
+        this.globalCounterService = globalCounterService;
+        this.blacklistedCounterService = blacklistedCounterService;
+        this.infectedCounterService = infectedCounterService;
+    }
 
     @Value("${clamd.host}")
     private String hostname;
@@ -143,6 +158,7 @@ public class ClamAVProxy {
     ClamAVResponse handleFileUpload(@RequestParam("name") String name,
                                     @RequestParam("file") MultipartFile file)
             throws IOException {
+        globalCounterService.increment("avaas.scan.call");
         MDC.clear();
         if (Strings.isNullOrEmpty(name)) throw new IllegalArgumentException("name parameter is empty or missing");
         if (!file.isEmpty()) {
@@ -155,6 +171,7 @@ public class ClamAVProxy {
 
             if (!magic.whiteListed(file.getBytes())) {
                 logger.info("scan blacklist");
+                blacklistedCounterService.increment("avaas.scan.blacklisted");
                 return new ClamAVResponse(true, true, ClamAVResponse.InfectionState.ignore, "", "",
                         file.getOriginalFilename(), sha256, file.getSize(), 0L);
             }
@@ -170,6 +187,7 @@ public class ClamAVProxy {
                 svcReponse = new ClamAVResponse(false, false, ClamAVResponse.InfectionState.no, replyAsString, "",
                                                 file.getOriginalFilename(), sha256, file.getSize(), duration);
             } else {
+                infectedCounterService.increment("avaas.scan.infected");
                 final String signature = getSignatureNameFromReply(replyAsString);
                 MDC.put("signature", signature);
                 logger.warn("positive scan");
