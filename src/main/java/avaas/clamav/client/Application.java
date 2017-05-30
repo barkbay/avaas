@@ -23,6 +23,7 @@ import com.codahale.metrics.jvm.MemoryUsageGaugeSet;
 import com.codahale.metrics.jvm.ThreadStatesGaugeSet;
 import com.github.sps.metrics.OpenTsdbReporter;
 import com.github.sps.metrics.opentsdb.OpenTsdb;
+import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.Banner;
@@ -45,6 +46,8 @@ import javax.servlet.MultipartConfigElement;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import static springfox.documentation.builders.PathSelectors.regex;
 
@@ -92,6 +95,8 @@ public class Application {
         return new MetricRegistryMetricReader(metricRegistry());
     }
 
+    public final static Pattern HostnamePattern = Pattern.compile("^([a-z0-9\\-]+)\\-(\\w+)\\-([0-9])\\-(\\w+)$");
+
     @Bean
     public MetricRegistry metricRegistry() {
         final MetricRegistry metricRegistry = new MetricRegistry();
@@ -101,10 +106,26 @@ public class Application {
         metricRegistry.register("jvm.mem",new MemoryUsageGaugeSet());
         metricRegistry.register("jvm.thread-states",new ThreadStatesGaugeSet());
 
+        final ImmutableMap.Builder<String, String> tagBuilder = ImmutableMap.builder();
+
+        // Attempt to ready current dc
+        final String hostname = System.getenv("HOSTNAME");
+        if (!Strings.isNullOrEmpty(hostname)) {
+            tagBuilder.put("hostname", hostname);
+            final Matcher matcher = HostnamePattern.matcher(hostname);
+            if (matcher.matches()) {
+                tagBuilder.put("dc", matcher.group(1));
+                tagBuilder.put("env", matcher.group(2));
+                tagBuilder.put("dcn", matcher.group(3));
+            }
+        } else {
+            tagBuilder.put("hostname", "unknown");
+        }
+
         // On enregistre le rapporteur OpenTSDB
         OpenTsdbReporter.forRegistry(metricRegistry)
                 .withBatchSize(5)
-                .withTags(ImmutableMap.of("foo", "bar"))
+                .withTags(tagBuilder.build())
                 .build(OpenTsdb.forService(opentsdbUrl).create())
                 .start(5L, TimeUnit.SECONDS);
 

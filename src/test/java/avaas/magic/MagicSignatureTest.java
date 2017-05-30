@@ -6,9 +6,7 @@ import java.util.Optional;
 
 import static org.junit.Assert.*;
 
-/**
- * Created by morello-08393 on 21/05/17.
- */
+
 public class MagicSignatureTest {
 
     @Test
