@@ -22,15 +22,21 @@ import avaas.magic.Magic;
 import com.google.common.base.Strings;
 import io.swagger.annotations.ApiResponse;
 import io.swagger.annotations.ApiResponses;
+import org.apache.catalina.connector.Connector;
+import org.apache.coyote.http11.Http11NioProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.actuate.metrics.CounterService;
+import org.springframework.boot.context.embedded.EmbeddedServletContainerFactory;
+import org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedServletContainerFactory;
+import org.springframework.context.annotation.Bean;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
@@ -68,6 +74,12 @@ public class ClamAVProxy {
 
     @Value("${clamd.timeout}")
     private int timeout;
+
+    @Value("${ssl.cert}")
+    private String sslCert;
+
+    @Value("${ssl.key}")
+    private String sslKey;
 
     public static class ClamAVResponse {
 
@@ -234,5 +246,51 @@ public class ClamAVProxy {
         try (InputStream is = file.getInputStream()) {
             return a.scan(is);
         }
+    }
+
+    /* HTTPS Configuration */
+    @Bean
+    public EmbeddedServletContainerFactory servletContainer() {
+        TomcatEmbeddedServletContainerFactory tomcat = new TomcatEmbeddedServletContainerFactory();
+        //tomcat.addAdditionalTomcatConnectors(createConnector());
+        final File sslCertFile = new File(sslCert);
+        final File sslKeyFile = new File(sslKey);
+        if (sslCertFile.canRead() && sslKeyFile.canRead()) {
+            tomcat.addAdditionalTomcatConnectors(createSslConnector(sslCertFile, sslKeyFile));
+        } else {
+            logger.info("https disabled : no cert and private in {} and {}",
+                        sslCertFile.getAbsoluteFile(), sslKeyFile.getAbsoluteFile());
+        }
+        return tomcat;
+    }
+
+    private Connector createConnector() {
+        Connector connector = new Connector("org.apache.coyote.http11.Http11NioProtocol");
+        Http11NioProtocol protocol = (Http11NioProtocol) connector.getProtocolHandler();
+        connector.setScheme("http");
+        connector.setSecure(false);
+        connector.setPort(8080);
+        protocol.setSSLEnabled(false);
+        return connector;
+    }
+
+    private Connector createSslConnector(final File sslCertFile, final File sslKeyFile) {
+        logger.info("enabling https with cert {} and key {}",
+                     sslCertFile.getAbsoluteFile(), sslKeyFile.getAbsoluteFile());
+        Connector connector = new Connector("org.apache.coyote.http11.Http11NioProtocol");
+        Http11NioProtocol protocol = (Http11NioProtocol) connector.getProtocolHandler();
+        connector.setScheme("https");
+        connector.setSecure(true);
+        connector.setPort(8443);
+        protocol.setSSLEnabled(true);
+        protocol.setSSLCertificateFile(sslCertFile.getAbsolutePath());
+        protocol.setSSLCertificateKeyFile(sslKeyFile.getAbsolutePath());
+        protocol.setSSLPassword("");
+/*      protocol.setKeystoreFile(keystore.getAbsolutePath());
+        protocol.setKeystorePass("changeit");
+        protocol.setTruststoreFile(truststore.getAbsolutePath());
+        protocol.setTruststorePass("changeit");
+        protocol.setKeyAlias("apitester");*/
+        return connector;
     }
 }

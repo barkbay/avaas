@@ -76,6 +76,8 @@ public class Application {
         defaults.put("clamd.maxfilesize", "20000KB");
         defaults.put("clamd.maxrequestsize", "20000KB");
         defaults.put("opentsdb.url", "http://localhost:4242");
+        defaults.put("ssl.cert","/opt/app-root/tls/httpd.crt");
+        defaults.put("ssl.key","/opt/app-root/tls/httpd.key");
         app.setDefaultProperties(defaults);
         app.setBannerMode(Banner.Mode.OFF);
         app.run(args);
